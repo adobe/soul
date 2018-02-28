@@ -1,0 +1,60 @@
+actions:
+  - name: "Restart Splunk Forwarders"
+    alert: "Splunk Alert: Sev3: Dev Splunk forwarder failed to send logs to Splunk"
+    action:
+      - name: "echo MESSAGE"
+        params:
+          - param: "MESSAGE"
+            value: "Restarting Splunk Forwarder"
+      - name: "../../coral/coral -s SERVER -t $(../../coral/coral -s SERVER -t APP | grep HOST | awk '{ print $2 }') -k"
+        params:
+          - param: "SERVER"
+            value: ""
+          - param: "APP"
+            value: "splunkforwarder-hvc"
+          - param: "HOST"
+            value: ""
+      - name: "../../coral/coral -b ALERT"
+        params:
+          - param: "ALERT"
+            value: "Splunk Alert: Sev3: Dev Splunk forwarder failed to send logs to Splunk"
+      - name: "echo Sleeping SECONDS"
+        params:
+          - param: "SECONDS"
+            value: "15"
+      - name: "sleep SECONDS"
+        params:
+          - param: "SECONDS"
+            value: "15"
+    status: "Pending"
+    customer: "Adobe"
+
+  - name: "Restart API Gateway"
+    alert: "Splunk Alert: Sev3: Prod API Upstream Server"
+    action:
+      - name: "echo Restarting Apigateway"
+        params:
+          - param: "MESSAGE"
+            value: "Restarting Apigateway"
+      - name: "../../coral/coral -s SERVER -t $(../../coral/coral -s SERVER -t APP | grep HOST | awk '{ print $2 }') -k"
+        params:
+          - param: "SERVER"
+            value: ""
+          - param: "APP"
+            value: "api"
+          - param: "HOST"
+            value: ""
+      - name: "echo Finished SERVER"
+        params:
+          - param: "SERVER"
+            value: ""
+      - name: "echo Sleeping SECONDS"
+        params:
+          - param: "SECONDS"
+            value: "15"
+      - name: "sleep 15"
+        params:
+          - param: "SERVER"
+            value: ""
+    status: "Pending"
+    customer: "Adobe"

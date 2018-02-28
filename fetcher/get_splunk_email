@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+#
+# Author: Alejandro Sanchez Acosta
+#
+# Copyright (c) 2018 Adobe Systems Incorporated. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import imaplib
+import os
+import email
+from pprint import pprint as pp
+import base64
+from sets import Set
+import yaml
+
+with open("configsplunk.yaml", 'r') as actionsdata:
+    try:
+        configuration = yaml.load(actionsdata)
+        username = configuration['username']
+        password = configuration['password']
+        mailserver = configuration['mailserver']
+        mailbox = configuration['mailbox']
+        subject = configuration['subject']
+        filters = configuration['filters']
+
+    except yaml.YAMLError as exc:
+        print(exc)
+
+# Connect to imap server
+mail = imaplib.IMAP4_SSL(mailserver)
+mail.login(username, password)
+
+# Retrieve a list of the mailboxes and select one
+result, mailboxes = mail.list()
+mail.select(mailbox)
+
+# Retrieve a list of the UIDs for all of the messages in the select mailbox
+result, numbers = mail.uid('search', None, '(UNSEEN)')
+uids = numbers[0].split()
+
+if numbers[0] != '':
+    # Retrieve the headers (without setting the 'seen' flag) of the last 10 messages
+    # in the list of UIDs
+    result, messages = mail.uid('fetch', ','.join(uids[-10:]), '(RFC822)')
+
+    # Convert the messages into email message object and print out the sender and
+    # the subject.
+    unique = Set()
+    for _, message in messages[::2]:
+        msg = email.message_from_string(message)
+
+        if subject in msg.get('subject'):
+            if msg.is_multipart():
+                for payload in msg.get_payload():
+                    for payload2 in payload.get_payload():
+                        if payload2.get_content_type() == "text/plain":
+                            body = base64.b64decode(payload2.get_payload())
+                            for line in body.split("\n"):
+                                if "ethos-" in line or "mc-" in line or "dcos-compute" in line:
+                                    data = line.split("   ")
+
+                                    if "dcos-compute" in line and "index" not in line:
+                                        print line
+                                        host = data[2].strip().split('_')[4]
+                                        cluster = data[2].strip().split('-')[0]
+                                        env = data[2].strip().split('-')[1]
+                                        region = data[2].strip().split('-')[2]
+                                        server = cluster + "-" + region + "-control." + env + ".cloud.adobe.io"
+                                        unique.add("\"'" + msg.get('subject') + "'\" " + host + ' ' + server)
+
+                                    # if "ethos-" in line and "index" not in line:
+                                    #     print "ethos", line
+                                    #     sfields = data[5].split("-")
+                                    #     host = data[9].strip().split(',')[3]
+                                    #     cluster = data[9].strip().split(',')[0].split('-')[0]
+                                    #     env = data[9].strip().split(',')[0].split('-')[1]
+                                    #     region = data[9].strip().split(',')[0].split('-')[2]
+                                    #     server = cluster + "-" + region + "-control." + env + ".cloud.adobe.io"
+                                    #     unique.add("\"'" + msg.get('subject') + "'\" " + host + ' ' + server)
+
+        for host in unique:
+            print host
+            os.system("bash launcher-from-email " + host)
+else:
+    print "Not pending emails to check"

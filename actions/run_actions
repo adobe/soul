@@ -1,0 +1,72 @@
+#!/usr/bin/python
+#
+# Author: Alejandro Sanchez Acosta
+#
+# Copyright (c) 2018 Adobe Systems Incorporated. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import yaml
+import sys
+import getopt
+import os
+
+def usage():
+    print "Usage"
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "hon:p:lv", ["help", "output", "name", "list", "parameter"])
+except getopt.GetoptError as err:
+    print str(err)
+    usage()
+    sys.exit(2)
+output, ipaddress, alertname, listactions, parameters = None, None, None, None, []
+verbose = False
+for o, a in opts:
+    if o == "-v":
+        verbose = True
+    elif o in ("-h", "--help"):
+        usage()
+        sys.exit()
+    elif o in ("-o", "--output"):
+        output = a
+    elif o in ("-n", "--name"):
+        alertname = a
+    elif o in ("-p", "--parameter"):
+        parameters.append(a)
+    elif o in ("-l", "--list"):
+        listactions = True
+    else:
+        assert False, "unhandled option"
+
+with open("../actions/actions.yaml", 'r') as actionsdata:
+    try:
+        actions = yaml.load(actionsdata)
+        found, noactions = False, False
+        for action in actions['actions']:
+            if action["status"] == "Pending" and action["alert"] in alertname:
+                for customaction in action["action"]:
+                    customactionname = customaction["name"]
+                    if parameters:
+                        for parameter in parameters:
+                            customactionname = customactionname.replace(parameter.split("=")[0], parameter.split("=")[1])
+                    if customaction["params"]:
+                        for param in customaction["params"]:
+                            customactionname = customactionname.replace(param["param"], param["value"])
+                        os.system(customactionname)
+
+    except yaml.YAMLError as exc:
+        print(exc)
+
+sys.stdout.flush()
