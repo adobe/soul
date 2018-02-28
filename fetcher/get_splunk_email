@@ -33,7 +33,6 @@ with open("configsplunk.yaml", 'r') as actionsdata:
         mailserver = configuration['mailserver']
         mailbox = configuration['mailbox']
         subject = configuration['subject']
-        filters = configuration['filters']
 
     except yaml.YAMLError as exc:
         print(exc)
@@ -92,6 +91,6 @@ if numbers[0] != '':
 
         for host in unique:
             print host
-            os.system("bash launcher-from-email " + host)
+            os.system("bash ../listener/launcher-from-email " + host)
 else:
     print "Not pending emails to check"

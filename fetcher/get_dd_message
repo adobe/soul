@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-source configdd
+source "${BASH_SOURCE%/*}/configdd"
 
 START=$(date +%s)
 END=$(date -v -10M +%s)
